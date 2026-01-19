@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import os
+from urllib.parse import urlencode
 
 # GitHub OAuth Configuration
 GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "")
@@ -34,6 +35,7 @@ if "code" in query_params and not st.session_state.authenticated:
     
     try:
         token_response = requests.post(token_url, data=token_data, headers=headers)
+        token_response.raise_for_status()
         token_json = token_response.json()
         
         if "access_token" in token_json:
@@ -42,10 +44,11 @@ if "code" in query_params and not st.session_state.authenticated:
             # Get user info from GitHub
             user_url = "https://api.github.com/user"
             user_headers = {
-                "Authorization": f"token {access_token}",
+                "Authorization": f"Bearer {access_token}",
                 "Accept": "application/json"
             }
             user_response = requests.get(user_url, headers=user_headers)
+            user_response.raise_for_status()
             user_data = user_response.json()
             
             st.session_state.authenticated = True
@@ -101,8 +104,13 @@ else:
             6. Restart the Streamlit app
             """)
     else:
-        # Generate GitHub OAuth URL
-        github_auth_url = f"https://github.com/login/oauth/authorize?client_id={GITHUB_CLIENT_ID}&redirect_uri={GITHUB_REDIRECT_URI}&scope=user:email"
+        # Generate GitHub OAuth URL with properly encoded parameters
+        oauth_params = {
+            "client_id": GITHUB_CLIENT_ID,
+            "redirect_uri": GITHUB_REDIRECT_URI,
+            "scope": "user:email"
+        }
+        github_auth_url = f"https://github.com/login/oauth/authorize?{urlencode(oauth_params)}"
         
         st.markdown(f"[🔗 Login with GitHub]({github_auth_url})", unsafe_allow_html=True)
         st.info("Click the link above to authenticate with GitHub")
